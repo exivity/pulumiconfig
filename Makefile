@@ -3,8 +3,6 @@ PWD = $(shell pwd)
 
 # constants
 GOLANGCI_VERSION = 1.55.2
-DOCKER_REPO = pulumiconfig
-DOCKER_TAG = latest
 
 all: git-hooks  tidy ## Initializes all tools
 
@@ -67,9 +65,6 @@ out/report.json: out
 
 clean: ## Cleans up everything
 	@rm -rf bin out 
-
-docker: ## Builds docker image
-	docker buildx build -t $(DOCKER_REPO):$(DOCKER_TAG) .
 
 ci: lint-reports test-reports ## Executes lint and test and generates reports
 
