@@ -42,6 +42,14 @@ linters-settings:
   funlen:
     lines: 100
     statements: 50
+  depguard:
+    rules:
+      main:
+        allow:
+          - $gostd
+          - github.com/pulumi/pulumi/sdk/v3/go
+          - github.com/go-playground/validator
+          - github.com/stretchr/testify/assert
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source
