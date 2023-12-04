@@ -51,25 +51,24 @@ func main() error {
 ### Example Snippets
 
 ```go
-// Custom Validator Implementation
-type MyValidator struct {
-    // Implementation details
+func GetCustomValidations(ctx *pulumi.Context) []pulumiconfig.Validator {
+    return []pulumiconfig.Validator{
+        &MyValidator{
+            pulumiconfig.FieldValidation{
+                Tag:      "Register",
+                Validate: Register,
+            },
+        },
+    }
 }
 
-func (v *MyValidator) Register(validate *validator.Validate) error {
+func Register(validate *validator.Validate) error {
     // Register custom validation logic
 }
 
 // Using type conversions in PulumiConfig
 type MyConfig struct {
-    MyNumber string `pulumi:"myNumber" validate:"int64"`
-}
-```
-
-```go
-// Example Test Case
-func TestMyConfigValidation(t *testing.T) {
-    // Test setup and assertions
+    MyNumber string `pulumi:"myNumber" validate:"required"`
 }
 ```
 
