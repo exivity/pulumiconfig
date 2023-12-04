@@ -79,8 +79,4 @@ We welcome contributions! Please refer to the `CODEOWNERS` file for guidelines o
 
 ## License
 
-PulumiConfig is released under [LICENSE TYPE]. See the [LICENSE](./LICENSE) file for more details.
-
-## Support
-
-For support, questions, or contributions, please contact [CONTACT INFORMATION].
+PulumiConfig is released under MIT. See the [LICENSE](./LICENSE) file for more details.
