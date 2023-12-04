@@ -1,5 +1,7 @@
 # PulumiConfig
 
+> **Experimental Project**: This project is in an experimental phase and may undergo significant changes. Use at your own risk.
+
 [![GoTemplate](https://img.shields.io/badge/go/template-black?logo=go)](https://github.com/SchwarzIT/go-template)
 
 PulumiConfig is a Golang library designed to improve the way developers manage configuration in Pulumi. By leveraging Golang structs, it simplifies the process of tracking and validating configuration keys, ensuring a more efficient and error-free deployment process in cloud infrastructure projects.
