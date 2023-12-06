@@ -8,6 +8,8 @@ require (
 	github.com/stretchr/testify v1.8.4
 )
 
+replace sourcegraph.com/sourcegraph/appdash => github.com/pulumi/appdash v0.0.0-20211028080628-e2786a622600
+
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
