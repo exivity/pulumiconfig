@@ -1,6 +1,6 @@
 module github.com/exivity/pulumiconfig
 
-go 1.21.7
+go 1.22.3
 
 require (
 	github.com/go-playground/validator/v10 v10.18.0
