@@ -3,7 +3,7 @@ module github.com/exivity/pulumiconfig
 go 1.22.3
 
 require (
-	github.com/go-playground/validator/v10 v10.22.1
+	github.com/go-playground/validator/v10 v10.23.0
 	github.com/pulumi/pulumi/sdk/v3 v3.136.1
 	github.com/stretchr/testify v1.9.0
 )
