@@ -4,7 +4,7 @@ go 1.22.3
 
 require (
 	github.com/go-playground/validator/v10 v10.23.0
-	github.com/pulumi/pulumi/sdk/v3 v3.144.1
+	github.com/pulumi/pulumi/sdk/v3 v3.145.0
 	github.com/stretchr/testify v1.10.0
 )
 
