@@ -84,9 +84,12 @@ func GetConfig(ctx *pulumi.Context, obj interface{}, validators ...Validator) er
 func getConfigValue(cfg *config.Config, jsonTag string, field reflect.Value, isRequired bool) error {
 	if field.Kind() == reflect.Ptr {
 		return cfg.GetObject(jsonTag, field.Addr().Interface())
-	} else if err := cfg.TryObject(jsonTag, field.Addr().Interface()); err != nil && isRequired {
+	}
+
+	if err := cfg.TryObject(jsonTag, field.Addr().Interface()); err != nil && isRequired {
 		return fmt.Errorf("Error while reading pulumi config `%s`: %w", jsonTag, err)
 	}
+
 	return nil
 }
 
