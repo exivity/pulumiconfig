@@ -60,7 +60,7 @@ func GetConfig(ctx *pulumi.Context, obj interface{}, validators ...Validator) er
 		cfg := config.New(ctx, pulumiConfigNamespace)
 
 		isRequired := fieldType.Tag.Get("validate") == "required"
-		if err := getConfigValue(cfg, jsonTag, v.Field(i), isRequired); err != nil {
+		if err := getConfigValue(cfg, jsonTag, v.Field(i)); err != nil && isRequired {
 			return err
 		}
 	}
@@ -80,13 +80,13 @@ func GetConfig(ctx *pulumi.Context, obj interface{}, validators ...Validator) er
 	return nil
 }
 
-// getConfigValue fetches the configuration value based on its type and if it's a required field.
-func getConfigValue(cfg *config.Config, jsonTag string, field reflect.Value, isRequired bool) error {
+// getConfigValue fetches the configuration value based on its type.
+func getConfigValue(cfg *config.Config, jsonTag string, field reflect.Value) error {
 	if field.Kind() == reflect.Ptr {
 		return cfg.GetObject(jsonTag, field.Addr().Interface())
 	}
 
-	if err := cfg.TryObject(jsonTag, field.Addr().Interface()); err != nil && isRequired {
+	if err := cfg.TryObject(jsonTag, field.Addr().Interface()); err != nil {
 		return fmt.Errorf("Error while reading pulumi config `%s`: %w", jsonTag, err)
 	}
 
