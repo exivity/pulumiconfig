@@ -96,10 +96,6 @@ type MyConfig struct {
 }
 ```
 
-## Contributing
-
-We welcome contributions! Please refer to the `CODEOWNERS` file for guidelines on contributing to PulumiConfig.
-
 ## License
 
 PulumiConfig is released under MIT. See the [LICENSE](./LICENSE) file for more details.
