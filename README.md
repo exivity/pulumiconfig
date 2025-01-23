@@ -44,6 +44,30 @@ func main() error {
 }
 ```
 
+### Using `pulumiConfigNamespace`
+
+The `pulumiConfigNamespace` tag allows you to specify a custom namespace for a field in your configuration struct. This is useful for grouping related configuration values under a specific namespace. Note that this tag only works on the first level of a configuration struct.
+
+A use case could be adding provider credentials just once, so that it can be used for both the provider and within the user application.
+
+```go
+type PulumiConfig struct {
+    ProviderCredentials *ProviderCredentials `json:"provider_credentials" pulumiConfigNamespace:"provider" validate:"required"`
+}
+
+type ProviderCredentials struct {
+    Token string `json:"token"`
+}
+
+// Example deployment function using PulumiConfig with namespace
+func main() error {
+    ...
+    cfg := &PulumiConfig{}
+    err = pulumiconfig.GetConfig(ctx, cfg, config.GetCustomValidations(ctx)...)
+    ...
+}
+```
+
 ### Advanced Features
 
 - **Custom Validation Logic**: Implement the `Validator` interface to create custom validation types. This is useful for scenarios that require specific validation rules beyond standard checks.
