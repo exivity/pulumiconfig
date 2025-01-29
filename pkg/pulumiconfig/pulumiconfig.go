@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"dario.cat/mergo"
 	"github.com/go-playground/validator/v10"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
@@ -41,16 +42,16 @@ func (sv StructValidation) Register(validate *validator.Validate) error {
 // GetConfig retrieves configuration values from the Pulumi project and populates the provided object.
 // It also runs any associated validations to ensure the configuration's integrity.
 func GetConfig(ctx *pulumi.Context, obj interface{}, validators ...Validator) error {
-	v := reflect.ValueOf(obj)
+	val := reflect.ValueOf(obj)
 
 	// Dereference if obj is a pointer to get the underlying value.
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
 	}
 
-	// Iterate over each field in the struct and fetch its configuration.
-	for i := 0; i < v.NumField(); i++ {
-		fieldType := v.Type().Field(i)
+	// Populate the struct fields with config values.
+	for i := 0; i < val.NumField(); i++ {
+		fieldType := val.Type().Field(i)
 		jsonTag := fieldType.Tag.Get("json")
 		if jsonTag == "" {
 			continue
@@ -60,33 +61,72 @@ func GetConfig(ctx *pulumi.Context, obj interface{}, validators ...Validator) er
 		cfg := config.New(ctx, pulumiConfigNamespace)
 
 		isRequired := fieldType.Tag.Get("validate") == "required"
-		if err := getConfigValue(cfg, jsonTag, v.Field(i), isRequired); err != nil {
-			return err
+		err := populateFieldFromConfig(cfg, jsonTag, val.Field(i))
+
+		overwritePulumiConfigNamespace := fieldType.Tag.Get("overrideConfigNamespace")
+		var errOverwrite error
+		if overwritePulumiConfigNamespace != "" {
+			errOverwrite = overwriteFieldFromOverwriteCfg(ctx, val.Field(i), jsonTag, overwritePulumiConfigNamespace)
+		}
+
+		// If this field is required and both attempts (main + overwrite) failed, return error.
+		if isRequired && err != nil && errOverwrite != nil {
+			return fmt.Errorf("error while reading pulumi config '%s': %w", jsonTag, err)
 		}
 	}
 
 	// Initialize the validator and register custom validation rules.
 	validate := validator.New()
-	validators = append(validators, GetValidations(ctx)...)
+	validators = append(validators, GetValidations(ctx)...) // Assuming GetValidations is defined elsewhere.
+
 	if err := registerValidations(validate, validators); err != nil {
 		return err
 	}
 
 	// Validate the struct using the initialized validator.
 	if err := validate.Struct(obj); err != nil {
-		return fmt.Errorf("Validation error: %w", err)
+		return fmt.Errorf("validation error: %w", err)
 	}
 
 	return nil
 }
 
-// getConfigValue fetches the configuration value based on its type and if it's a required field.
-func getConfigValue(cfg *config.Config, jsonTag string, field reflect.Value, isRequired bool) error {
+// populateFieldFromConfig fetches and assigns the configuration value for a given field.
+func populateFieldFromConfig(cfg *config.Config, key string, field reflect.Value) error {
 	if field.Kind() == reflect.Ptr {
-		return cfg.GetObject(jsonTag, field.Addr().Interface())
-	} else if err := cfg.TryObject(jsonTag, field.Addr().Interface()); err != nil && isRequired {
-		return fmt.Errorf("Error while reading pulumi config `%s`: %w", jsonTag, err)
+		return cfg.GetObject(key, field.Addr().Interface())
 	}
+
+	if err := cfg.TryObject(key, field.Addr().Interface()); err != nil {
+		return fmt.Errorf("error while reading pulumi config '%s': %w", key, err)
+	}
+
+	return nil
+}
+
+// overwriteFieldFromOverwriteCfg handles the overwrite logic, reading from another config namespace
+// and merging the result back into the original field.
+func overwriteFieldFromOverwriteCfg(ctx *pulumi.Context, field reflect.Value, jsonTag, overwriteNamespace string) error {
+	overwriteCfg := config.New(ctx, overwriteNamespace)
+
+	// Create a fresh copy of the field named overwriteV.
+	clone := CloneStruct(field.Interface())
+	overwriteVal := reflect.ValueOf(clone)
+	if overwriteVal.Kind() == reflect.Ptr {
+		overwriteVal = overwriteVal.Elem()
+	}
+
+	// Now read config values into overwriteVal.
+	err := populateFieldFromConfig(overwriteCfg, jsonTag, overwriteVal)
+	if err != nil {
+		return err
+	}
+
+	// Merge the overwritten values back to the original object.
+	if mergeErr := mergo.Merge(field.Addr().Interface(), overwriteVal.Addr().Interface(), mergo.WithOverride); mergeErr != nil {
+		return mergeErr
+	}
+
 	return nil
 }
 
@@ -98,4 +138,24 @@ func registerValidations(validate *validator.Validate, validators []Validator) e
 		}
 	}
 	return nil
+}
+
+// CloneStruct uses reflection to create a new instance of the same type
+// and copy each exported field's value from src to the new instance.
+func CloneStruct(src interface{}) interface{} {
+	srcVal := reflect.ValueOf(src)
+	if srcVal.Kind() == reflect.Ptr {
+		srcVal = srcVal.Elem()
+	}
+
+	srcType := srcVal.Type()
+	dst := reflect.New(srcType).Elem()
+
+	for i := 0; i < srcVal.NumField(); i++ {
+		if dst.Field(i).CanSet() {
+			dst.Field(i).Set(srcVal.Field(i))
+		}
+	}
+
+	return dst.Addr().Interface()
 }

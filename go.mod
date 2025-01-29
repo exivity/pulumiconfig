@@ -3,13 +3,13 @@ module github.com/exivity/pulumiconfig
 go 1.22.3
 
 require (
+	dario.cat/mergo v1.0.1
 	github.com/go-playground/validator/v10 v10.24.0
 	github.com/pulumi/pulumi/sdk/v3 v3.145.0
 	github.com/stretchr/testify v1.10.0
 )
 
 require (
-	dario.cat/mergo v1.0.0 // indirect
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/ProtonMail/go-crypto v1.0.0 // indirect

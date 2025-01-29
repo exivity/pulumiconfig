@@ -3,6 +3,7 @@ package pulumiconfig
 import (
 	"encoding/json"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/go-playground/validator/v10"
@@ -27,7 +28,7 @@ func (mocks) Call(_ pulumi.MockCallArgs) (resource.PropertyMap, error) {
 }
 
 type TestPulumiConfig struct {
-	DigitalOcean        TestDigitalOcean         `json:"digital_ocean" validate:"required"`
+	DigitalOcean        TestDigitalOcean         `json:"digital_ocean" overrideConfigNamespace:"pulumi_esc" validate:"required"`
 	GrafanaCloud        *TestGrafanaCloud        `json:"grafana_cloud"`
 	ProviderCredentials *TestProviderCredentials `json:"provider_credentials" pulumiConfigNamespace:"provider" validate:"required"`
 	Enabled             bool                     `json:"enabled"`
@@ -79,11 +80,20 @@ func nameNotEqualToToken(sl validator.StructLevel) {
 	}
 }
 
+func setPulumiConfig(t *testing.T, config map[string]string) {
+	jsonConfig, err := json.Marshal(config)
+	assert.NoError(t, err, "Error marshaling to JSON")
+
+	err = os.Setenv(pulumi.EnvConfig, string(jsonConfig))
+	assert.NoError(t, err)
+}
+
 func TestGetConfig(t *testing.T) {
 	type args struct {
 		obj         interface{}
 		validations []Validator
 	}
+
 	tests := []struct {
 		name    string
 		config  map[string]string
@@ -255,17 +265,93 @@ func TestGetConfig(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "overwrite field value",
+			config: map[string]string{
+				"project:digital_ocean":         `{"region":"us-east-1"}`,
+				"pulumi_esc:digital_ocean":      `{"region":"us-west-1"}`,
+				"provider:provider_credentials": `{"token":"token123", "grafana_cloud": {"enabled":true}}`,
+				"project:enabled":               `true`,
+				"project:org_id":                `123`,
+				"project:subscription_id":       `"sub123"`,
+				"project:name":                  `"DeploymentName"`,
+			},
+			args: args{
+				obj: &TestPulumiConfig{},
+			},
+			want: &TestPulumiConfig{
+				DigitalOcean: TestDigitalOcean{Region: "us-west-1"},
+				ProviderCredentials: &TestProviderCredentials{
+					Token:        "token123",
+					GrafanaCloud: TestGrafanaCloud{Enabled: true},
+				},
+				Enabled:        true,
+				OrgID:          123,
+				SubscriptionID: stringPtr("sub123"),
+				Name:           "DeploymentName",
+			},
+			wantErr: false,
+		},
+		{
+			name: "overwrite field value with missing original",
+			config: map[string]string{
+				"pulumi_esc:digital_ocean":      `{"region":"us-west-1"}`,
+				"provider:provider_credentials": `{"token":"token123", "grafana_cloud": {"enabled":true}}`,
+				"project:enabled":               `true`,
+				"project:org_id":                `123`,
+				"project:subscription_id":       `"sub123"`,
+				"project:name":                  `"DeploymentName"`,
+			},
+			args: args{
+				obj: &TestPulumiConfig{},
+			},
+			want: &TestPulumiConfig{
+				DigitalOcean: TestDigitalOcean{Region: "us-west-1"},
+				ProviderCredentials: &TestProviderCredentials{
+					Token:        "token123",
+					GrafanaCloud: TestGrafanaCloud{Enabled: true},
+				},
+				Enabled:        true,
+				OrgID:          123,
+				SubscriptionID: stringPtr("sub123"),
+				Name:           "DeploymentName",
+			},
+			wantErr: false,
+		},
+		{
+			name: "overwrite field value with invalid overwrite",
+			config: map[string]string{
+				"project:digital_ocean":         `{"region":"us-east-1"}`,
+				"pulumi_esc:digital_ocean":      `{"region":"invalid-region"}`,
+				"provider:provider_credentials": `{"token":"token123", "grafana_cloud": {"enabled":true}}`,
+				"project:enabled":               `true`,
+				"project:org_id":                `123`,
+				"project:subscription_id":       `"sub123"`,
+				"project:name":                  `"DeploymentName"`,
+			},
+			args: args{
+				obj: &TestPulumiConfig{},
+			},
+			want: &TestPulumiConfig{
+				DigitalOcean: TestDigitalOcean{Region: "invalid-region"},
+				ProviderCredentials: &TestProviderCredentials{
+					Token:        "token123",
+					GrafanaCloud: TestGrafanaCloud{Enabled: true},
+				},
+				Enabled:        true,
+				OrgID:          123,
+				SubscriptionID: stringPtr("sub123"),
+				Name:           "DeploymentName",
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			jsonConfig, err := json.Marshal(tt.config)
-			assert.NoError(t, err, "Error marshaling to JSON")
+			setPulumiConfig(t, tt.config)
 
-			err = os.Setenv(pulumi.EnvConfig, string(jsonConfig))
-			assert.NoError(t, err)
-
-			err = pulumi.RunErr(func(ctx *pulumi.Context) error {
-				err = GetConfig(ctx, tt.args.obj, tt.args.validations...)
+			err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+				err := GetConfig(ctx, tt.args.obj, tt.args.validations...)
 				if tt.wantErr {
 					assert.Error(t, err)
 				} else {
@@ -279,6 +365,96 @@ func TestGetConfig(t *testing.T) {
 				pulumi.WithMocks("project", "stack", mocks(0)),
 			)
 			assert.NoError(t, err, "ValidateConfiguration() failed")
+		})
+	}
+}
+
+func TestCloneStruct(t *testing.T) {
+	type args struct {
+		src interface{}
+	}
+	tests := []struct {
+		name string
+		args args
+		want interface{}
+	}{
+		{
+			name: "clone simple struct",
+			args: args{
+				src: TestDigitalOcean{Region: "us-east-1"},
+			},
+			want: &TestDigitalOcean{Region: "us-east-1"},
+		},
+		{
+			name: "clone struct with pointer field",
+			args: args{
+				src: &TestPulumiConfig{
+					DigitalOcean: TestDigitalOcean{Region: "us-east-1"},
+					GrafanaCloud: &TestGrafanaCloud{Enabled: true},
+				},
+			},
+			want: &TestPulumiConfig{
+				DigitalOcean: TestDigitalOcean{Region: "us-east-1"},
+				GrafanaCloud: &TestGrafanaCloud{Enabled: true},
+			},
+		},
+		{
+			name: "clone struct with nested struct",
+			args: args{
+				src: TestProviderCredentials{
+					Token:        "token123",
+					GrafanaCloud: TestGrafanaCloud{Enabled: true},
+				},
+			},
+			want: &TestProviderCredentials{
+				Token:        "token123",
+				GrafanaCloud: TestGrafanaCloud{Enabled: true},
+			},
+		},
+		{
+			name: "clone struct with multiple fields",
+			args: args{
+				src: TestPulumiConfig{
+					DigitalOcean:        TestDigitalOcean{Region: "us-east-1"},
+					ProviderCredentials: &TestProviderCredentials{Token: "token123"},
+					Enabled:             true,
+					OrgID:               123,
+					SubscriptionID:      stringPtr("sub123"),
+					Name:                "DeploymentName",
+				},
+			},
+			want: &TestPulumiConfig{
+				DigitalOcean:        TestDigitalOcean{Region: "us-east-1"},
+				ProviderCredentials: &TestProviderCredentials{Token: "token123"},
+				Enabled:             true,
+				OrgID:               123,
+				SubscriptionID:      stringPtr("sub123"),
+				Name:                "DeploymentName",
+			},
+		},
+		{
+			name: "clone struct with default values",
+			args: args{
+				src: TestDefaultValue{
+					DefaultString: "DefaultValue",
+					DefaultInt:    100,
+					DefaultUInt:   50,
+					DefaultFloat:  24.24,
+				},
+			},
+			want: &TestDefaultValue{
+				DefaultString: "DefaultValue",
+				DefaultInt:    100,
+				DefaultUInt:   50,
+				DefaultFloat:  24.24,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CloneStruct(tt.args.src); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CloneStruct() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
