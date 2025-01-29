@@ -24,6 +24,13 @@ go get -u github.com/exivity/pulumiconfig
 
 ### Basic Usage
 
+Pulumi stack configuration is typically stored in a `Pulumi.<stack>.yaml` file. PulumiConfig simplifies the process of reading and validating these configuration values.
+
+```yaml
+config:
+  pulumiconfig:name: britney
+```
+
 ```go
 import (
     "github.com/exivity/EaaS-Pulumi-Deployment/pkg/providers/config"
@@ -57,6 +64,13 @@ The `pulumiConfigNamespace` tag allows you to specify a custom namespace for a f
 
 A use case could be adding provider credentials just once, so that it can be used for both the provider and within the user application.
 
+```yaml
+config:
+  pulumiconfig:provider_credentials:
+    token:
+      secure: do7ipohcahaiShaupheo5Ooneeghoh
+```
+
 ```go
 type PulumiConfig struct {
     ProviderCredentials *ProviderCredentials `json:"provider_credentials" pulumiConfigNamespace:"provider" validate:"required"`
@@ -83,12 +97,20 @@ func main() error {
 
 ### Using `overrideConfigNamespace`
 
-In some cases, you may want to override certain values with a separate namespace. For example, you might have a "global" config in the main namespace, but you wish to override some keys when running specific environments.
+In some cases, you may want to override certain values with a separate namespace. For example, you might have a "global" config in the main namespace, but you wish to override some keys when running specific environments. This can be particularly useful when using Pulumi ESC, allowing you to set configuration once and use it in several stacks. An example could be a multi-stage deployment, where only credentials need to differ, or in development where a backup configuration is not needed.
+
+```yaml
+config:
+  pulumiconfig:digital_ocean:
+    region: AMS3
+    project: staging-project
+  prod:digital_ocean:
+    project: production-project
+```
 
 ```go
 type PulumiConfig struct {
-    DigitalOcean   DigitalOceanConfig `json:"digital_ocean" pulumiConfigNamespace:"do"`
-    ProdOverrides  DigitalOceanConfig `json:"digital_ocean" overrideConfigNamespace:"do-prod"`
+    ProdOverrides  DigitalOceanConfig `json:"digital_ocean" overrideConfigNamespace:"prod"`
 }
 
 type DigitalOceanConfig struct {
@@ -98,6 +120,19 @@ type DigitalOceanConfig struct {
 
 // The overrideConfigNamespace tag tells PulumiConfig to look in "do-prod" namespace
 // after reading "do". The override values, if found, will overwrite or merge on top.
+func main() error {
+    pulumi.Run(func(ctx *pulumi.Context) error {
+    cfg := &PulumiConfig{}
+    err = pulumiconfig.GetConfig(ctx, cfg)
+    if err != nil {
+        return err
+    }
+
+    ctx.Export("region", cfg.ProdOverrides.Region)   // -> AMS3
+    ctx.Export("project", cfg.ProdOverrides.Project) // -> production-project
+
+    return nil
+}
 ```
 
 You can use `overrideConfigNamespace` on any field-level struct tag. PulumiConfig will first load from the main namespace, and then—if `overrideConfigNamespace` is set—load the separate namespace and merge those values in.
