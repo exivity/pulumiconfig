@@ -9,7 +9,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/resource"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -81,11 +80,20 @@ func nameNotEqualToToken(sl validator.StructLevel) {
 	}
 }
 
+func setPulumiConfig(t *testing.T, config map[string]string) {
+	jsonConfig, err := json.Marshal(config)
+	assert.NoError(t, err, "Error marshaling to JSON")
+
+	err = os.Setenv(pulumi.EnvConfig, string(jsonConfig))
+	assert.NoError(t, err)
+}
+
 func TestGetConfig(t *testing.T) {
 	type args struct {
 		obj         interface{}
 		validations []Validator
 	}
+
 	tests := []struct {
 		name    string
 		config  map[string]string
@@ -340,14 +348,10 @@ func TestGetConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			jsonConfig, err := json.Marshal(tt.config)
-			assert.NoError(t, err, "Error marshaling to JSON")
+			setPulumiConfig(t, tt.config)
 
-			err = os.Setenv(pulumi.EnvConfig, string(jsonConfig))
-			assert.NoError(t, err)
-
-			err = pulumi.RunErr(func(ctx *pulumi.Context) error {
-				err = GetConfig(ctx, tt.args.obj, tt.args.validations...)
+			err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+				err := GetConfig(ctx, tt.args.obj, tt.args.validations...)
 				if tt.wantErr {
 					assert.Error(t, err)
 				} else {
@@ -365,23 +369,91 @@ func TestGetConfig(t *testing.T) {
 	}
 }
 
-func Test_populateFieldFromConfig(t *testing.T) {
+func TestCloneStruct(t *testing.T) {
 	type args struct {
-		cfg   *config.Config
-		key   string
-		field reflect.Value
+		src interface{}
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name string
+		args args
+		want interface{}
 	}{
-		// TODO: Add test cases.
+		{
+			name: "clone simple struct",
+			args: args{
+				src: TestDigitalOcean{Region: "us-east-1"},
+			},
+			want: &TestDigitalOcean{Region: "us-east-1"},
+		},
+		{
+			name: "clone struct with pointer field",
+			args: args{
+				src: &TestPulumiConfig{
+					DigitalOcean: TestDigitalOcean{Region: "us-east-1"},
+					GrafanaCloud: &TestGrafanaCloud{Enabled: true},
+				},
+			},
+			want: &TestPulumiConfig{
+				DigitalOcean: TestDigitalOcean{Region: "us-east-1"},
+				GrafanaCloud: &TestGrafanaCloud{Enabled: true},
+			},
+		},
+		{
+			name: "clone struct with nested struct",
+			args: args{
+				src: TestProviderCredentials{
+					Token:        "token123",
+					GrafanaCloud: TestGrafanaCloud{Enabled: true},
+				},
+			},
+			want: &TestProviderCredentials{
+				Token:        "token123",
+				GrafanaCloud: TestGrafanaCloud{Enabled: true},
+			},
+		},
+		{
+			name: "clone struct with multiple fields",
+			args: args{
+				src: TestPulumiConfig{
+					DigitalOcean:        TestDigitalOcean{Region: "us-east-1"},
+					ProviderCredentials: &TestProviderCredentials{Token: "token123"},
+					Enabled:             true,
+					OrgID:               123,
+					SubscriptionID:      stringPtr("sub123"),
+					Name:                "DeploymentName",
+				},
+			},
+			want: &TestPulumiConfig{
+				DigitalOcean:        TestDigitalOcean{Region: "us-east-1"},
+				ProviderCredentials: &TestProviderCredentials{Token: "token123"},
+				Enabled:             true,
+				OrgID:               123,
+				SubscriptionID:      stringPtr("sub123"),
+				Name:                "DeploymentName",
+			},
+		},
+		{
+			name: "clone struct with default values",
+			args: args{
+				src: TestDefaultValue{
+					DefaultString: "DefaultValue",
+					DefaultInt:    100,
+					DefaultUInt:   50,
+					DefaultFloat:  24.24,
+				},
+			},
+			want: &TestDefaultValue{
+				DefaultString: "DefaultValue",
+				DefaultInt:    100,
+				DefaultUInt:   50,
+				DefaultFloat:  24.24,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := populateFieldFromConfig(tt.args.cfg, tt.args.key, tt.args.field); (err != nil) != tt.wantErr {
-				t.Errorf("populateFieldFromConfig() error = %v, wantErr %v", err, tt.wantErr)
+			if got := CloneStruct(tt.args.src); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CloneStruct() = %v, want %v", got, tt.want)
 			}
 		})
 	}
