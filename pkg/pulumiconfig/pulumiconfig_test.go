@@ -28,7 +28,7 @@ func (mocks) Call(_ pulumi.MockCallArgs) (resource.PropertyMap, error) {
 }
 
 type TestPulumiConfig struct {
-	DigitalOcean        TestDigitalOcean         `json:"digital_ocean" overwriteConfigNamespace:"pulumi_esc" validate:"required"`
+	DigitalOcean        TestDigitalOcean         `json:"digital_ocean" overrideConfigNamespace:"pulumi_esc" validate:"required"`
 	GrafanaCloud        *TestGrafanaCloud        `json:"grafana_cloud"`
 	ProviderCredentials *TestProviderCredentials `json:"provider_credentials" pulumiConfigNamespace:"provider" validate:"required"`
 	Enabled             bool                     `json:"enabled"`

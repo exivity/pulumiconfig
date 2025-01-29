@@ -63,7 +63,7 @@ func GetConfig(ctx *pulumi.Context, obj interface{}, validators ...Validator) er
 		isRequired := fieldType.Tag.Get("validate") == "required"
 		err := populateFieldFromConfig(cfg, jsonTag, val.Field(i))
 
-		overwritePulumiConfigNamespace := fieldType.Tag.Get("overwriteConfigNamespace")
+		overwritePulumiConfigNamespace := fieldType.Tag.Get("overrideConfigNamespace")
 		var errOverwrite error
 		if overwritePulumiConfigNamespace != "" {
 			errOverwrite = overwriteFieldFromOverwriteCfg(ctx, val.Field(i), jsonTag, overwritePulumiConfigNamespace)
