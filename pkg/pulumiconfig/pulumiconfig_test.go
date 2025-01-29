@@ -3,11 +3,13 @@ package pulumiconfig
 import (
 	"encoding/json"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/resource"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,7 +29,7 @@ func (mocks) Call(_ pulumi.MockCallArgs) (resource.PropertyMap, error) {
 }
 
 type TestPulumiConfig struct {
-	DigitalOcean        TestDigitalOcean         `json:"digital_ocean" validate:"required"`
+	DigitalOcean        TestDigitalOcean         `json:"digital_ocean" overwriteConfigNamespace:"pulumi_esc" validate:"required"`
 	GrafanaCloud        *TestGrafanaCloud        `json:"grafana_cloud"`
 	ProviderCredentials *TestProviderCredentials `json:"provider_credentials" pulumiConfigNamespace:"provider" validate:"required"`
 	Enabled             bool                     `json:"enabled"`
@@ -255,6 +257,86 @@ func TestGetConfig(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "overwrite field value",
+			config: map[string]string{
+				"project:digital_ocean":         `{"region":"us-east-1"}`,
+				"pulumi_esc:digital_ocean":      `{"region":"us-west-1"}`,
+				"provider:provider_credentials": `{"token":"token123", "grafana_cloud": {"enabled":true}}`,
+				"project:enabled":               `true`,
+				"project:org_id":                `123`,
+				"project:subscription_id":       `"sub123"`,
+				"project:name":                  `"DeploymentName"`,
+			},
+			args: args{
+				obj: &TestPulumiConfig{},
+			},
+			want: &TestPulumiConfig{
+				DigitalOcean: TestDigitalOcean{Region: "us-west-1"},
+				ProviderCredentials: &TestProviderCredentials{
+					Token:        "token123",
+					GrafanaCloud: TestGrafanaCloud{Enabled: true},
+				},
+				Enabled:        true,
+				OrgID:          123,
+				SubscriptionID: stringPtr("sub123"),
+				Name:           "DeploymentName",
+			},
+			wantErr: false,
+		},
+		{
+			name: "overwrite field value with missing original",
+			config: map[string]string{
+				"pulumi_esc:digital_ocean":      `{"region":"us-west-1"}`,
+				"provider:provider_credentials": `{"token":"token123", "grafana_cloud": {"enabled":true}}`,
+				"project:enabled":               `true`,
+				"project:org_id":                `123`,
+				"project:subscription_id":       `"sub123"`,
+				"project:name":                  `"DeploymentName"`,
+			},
+			args: args{
+				obj: &TestPulumiConfig{},
+			},
+			want: &TestPulumiConfig{
+				DigitalOcean: TestDigitalOcean{Region: "us-west-1"},
+				ProviderCredentials: &TestProviderCredentials{
+					Token:        "token123",
+					GrafanaCloud: TestGrafanaCloud{Enabled: true},
+				},
+				Enabled:        true,
+				OrgID:          123,
+				SubscriptionID: stringPtr("sub123"),
+				Name:           "DeploymentName",
+			},
+			wantErr: false,
+		},
+		{
+			name: "overwrite field value with invalid overwrite",
+			config: map[string]string{
+				"project:digital_ocean":         `{"region":"us-east-1"}`,
+				"pulumi_esc:digital_ocean":      `{"region":"invalid-region"}`,
+				"provider:provider_credentials": `{"token":"token123", "grafana_cloud": {"enabled":true}}`,
+				"project:enabled":               `true`,
+				"project:org_id":                `123`,
+				"project:subscription_id":       `"sub123"`,
+				"project:name":                  `"DeploymentName"`,
+			},
+			args: args{
+				obj: &TestPulumiConfig{},
+			},
+			want: &TestPulumiConfig{
+				DigitalOcean: TestDigitalOcean{Region: "invalid-region"},
+				ProviderCredentials: &TestProviderCredentials{
+					Token:        "token123",
+					GrafanaCloud: TestGrafanaCloud{Enabled: true},
+				},
+				Enabled:        true,
+				OrgID:          123,
+				SubscriptionID: stringPtr("sub123"),
+				Name:           "DeploymentName",
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -279,6 +361,28 @@ func TestGetConfig(t *testing.T) {
 				pulumi.WithMocks("project", "stack", mocks(0)),
 			)
 			assert.NoError(t, err, "ValidateConfiguration() failed")
+		})
+	}
+}
+
+func Test_populateFieldFromConfig(t *testing.T) {
+	type args struct {
+		cfg   *config.Config
+		key   string
+		field reflect.Value
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := populateFieldFromConfig(tt.args.cfg, tt.args.key, tt.args.field); (err != nil) != tt.wantErr {
+				t.Errorf("populateFieldFromConfig() error = %v, wantErr %v", err, tt.wantErr)
+			}
 		})
 	}
 }
