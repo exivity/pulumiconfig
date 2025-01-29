@@ -2,8 +2,6 @@
 
 > **Experimental Project**: This project is in an experimental phase and may undergo significant changes. Use at your own risk.
 
-[![GoTemplate](https://img.shields.io/badge/go/template-black?logo=go)](https://github.com/SchwarzIT/go-template)
-
 PulumiConfig is a Golang library designed to improve the way developers manage configuration in Pulumi. By leveraging Golang structs, it simplifies the process of tracking and validating configuration keys, ensuring a more efficient and error-free deployment process in cloud infrastructure projects.
 
 ## Features
@@ -11,7 +9,8 @@ PulumiConfig is a Golang library designed to improve the way developers manage c
 - **Seamless Integration**: Effortlessly integrates with Pulumi and Golang projects.
 - **Automated Key Tracking**: Automatically tracks configuration keys using Golang structs.
 - **JSON Tagging**: Supports JSON tagging for Pulumi configuration keys, including nested structs.
-- **Validation**: Integrates with the Go Playground Validator for custom validation logic, allowing required values and complex validations.
+- **[go-playground/validator](https://github.com/go-playground/validator)**, letting you define both field- and struct-level validations., allowing required values and complex validations.
+- **Namespace Overrides**: Use `overrideConfigNamespace` to override specific fields with values from a different namespace.
 
 ## Installation
 
@@ -37,10 +36,18 @@ type PulumiConfig struct {
 
 // Example deployment function using PulumiConfig
 func main() error {
-    ...
+    pulumi.Run(func(ctx *pulumi.Context) error {
     cfg := &PulumiConfig{}
-    err = pulumiconfig.GetConfig(ctx, cfg, config.GetCustomValidations(ctx)...)
-    ...
+    err = pulumiconfig.GetConfig(ctx, cfg)
+    if err != nil {
+        return err
+    }
+
+    // Use cfg.Name, etc.
+    ctx.Export("name", cfg.Name)
+
+  return nil
+ })
 }
 ```
 
@@ -61,40 +68,174 @@ type ProviderCredentials struct {
 
 // Example deployment function using PulumiConfig with namespace
 func main() error {
-    ...
+    pulumi.Run(func(ctx *pulumi.Context) error {
     cfg := &PulumiConfig{}
-    err = pulumiconfig.GetConfig(ctx, cfg, config.GetCustomValidations(ctx)...)
-    ...
+    err = pulumiconfig.GetConfig(ctx, cfg)
+    if err != nil {
+        return err
+    }
+
+    ctx.Export("provider_token", cfg.Token)
+
+    return nil
 }
 ```
 
-### Advanced Features
+### Using `overrideConfigNamespace`
 
-- **Custom Validation Logic**: Implement the `Validator` interface to create custom validation types. This is useful for scenarios that require specific validation rules beyond standard checks.
-
-### Example Snippets
+In some cases, you may want to override certain values with a separate namespace. For example, you might have a "global" config in the main namespace, but you wish to override some keys when running specific environments.
 
 ```go
+type PulumiConfig struct {
+    DigitalOcean   DigitalOceanConfig `json:"digital_ocean" pulumiConfigNamespace:"do"`
+    ProdOverrides  DigitalOceanConfig `json:"digital_ocean" overrideConfigNamespace:"do-prod"`
+}
+
+type DigitalOceanConfig struct {
+    Region  string `json:"region"`
+    Project string `json:"project"`
+}
+
+// The overrideConfigNamespace tag tells PulumiConfig to look in "do-prod" namespace
+// after reading "do". The override values, if found, will overwrite or merge on top.
+```
+
+You can use `overrideConfigNamespace` on any field-level struct tag. PulumiConfig will first load from the main namespace, and then—if `overrideConfigNamespace` is set—load the separate namespace and merge those values in.
+
+### Example: Custom Field and Struct Validators
+
+Below is a more in-depth example illustrating how you can combine PulumiConfig with the Pulumi DigitalOcean provider for domain-specific validation:
+
+```go
+package main
+
+import (
+    "fmt"
+    "reflect"
+    "slices"
+
+    "github.com/exivity/pulumiconfig/pkg/pulumiconfig"
+    "github.com/go-playground/validator/v10"
+    do "github.com/pulumi/pulumi-digitalocean/sdk/v4/go/digitalocean"
+    "github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+    "github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
+)
+
+const (
+    pulumiDigitalOceanNamespace = "digitalocean"
+    pulumiDigitalOceanTokenKey  = "token"
+)
+
+// GetCustomValidations returns a slice of Validators that run on a Configuration struct.
 func GetCustomValidations(ctx *pulumi.Context) []pulumiconfig.Validator {
+    v := &Validation{ctx: ctx}
     return []pulumiconfig.Validator{
-        &MyValidator{
-            pulumiconfig.FieldValidation{
-                Tag:      "Register",
-                Validate: Register,
-            },
+        // Struct-level validation (checks if DO Token is set).
+        pulumiconfig.StructValidation{
+            Struct:   &Configuration{},
+            Validate: v.DigitalOceanToken,
         },
+        // Field-level validation example: fetch Kubernetes version from DO and region availability.
+        pulumiconfig.FieldValidation{
+            Tag:      "kubernetesVersion",
+            Validate: v.KubernetesVersion,
+        },
+        pulumiconfig.FieldValidation{
+            Tag:      "region",
+            Validate: v.Region,
+        },
+        // Additional field-level validators omitted...
     }
 }
 
-func Register(validate *validator.Validate) error {
-    // Register custom validation logic
+type Validation struct {
+    ctx *pulumi.Context
 }
 
-// Using type conversions in PulumiConfig
-type MyConfig struct {
-    MyNumber string `pulumi:"myNumber" validate:"required"`
+// DigitalOceanToken checks if the DigitalOcean token is set.
+func (v *Validation) DigitalOceanToken(sl validator.StructLevel) {
+    cfg := config.New(v.ctx, pulumiDigitalOceanNamespace)
+    _, err := cfg.TrySecret(pulumiDigitalOceanTokenKey)
+    if err != nil {
+        // Log an error and mark validation as failed.
+        v.ctx.Log.Error(fmt.Sprintf("Missing DigitalOcean API token: %v", err), nil)
+        sl.ReportError(nil, "", "", "", "")
+    }
+}
+
+// KubernetesVersion looks up the latest DO K8s version that matches the user-supplied prefix.
+func (v *Validation) KubernetesVersion(fl validator.FieldLevel) bool {
+    versionPrefix := fl.Field().String()
+
+    versions, err := do.GetKubernetesVersions(v.ctx, &do.GetKubernetesVersionsArgs{
+        VersionPrefix: pulumi.StringRef(versionPrefix),
+    })
+    if err != nil {
+        v.ctx.Log.Error(fmt.Sprintf("Error fetching Kubernetes versions: %v", err), nil)
+        return false
+    }
+    if len(versions.ValidVersions) == 0 {
+        v.ctx.Log.Error(fmt.Sprintf("No matching Kubernetes versions found for prefix: %s", versionPrefix), nil)
+        return false
+    }
+
+    // Update the struct field with the latest valid version.
+    field := fl.Field()
+    if field.CanSet() {
+        field.SetString(versions.LatestVersion)
+        v.ctx.Export("Kubernetes version", pulumi.String(versions.LatestVersion))
+    }
+
+    return true
+}
+
+// Region checks if the specified region is currently available.
+func (v *Validation) Region(fl validator.FieldLevel) bool {
+    region := fl.Field().String()
+
+    regions, err := do.GetRegions(v.ctx, &do.GetRegionsArgs{
+        Filters: []do.GetRegionsFilter{{Key: "available", Values: []string{"true"}}},
+    })
+    if err != nil {
+        v.ctx.Log.Error(fmt.Sprintf("Error fetching regions: %v", err), nil)
+        return false
+    }
+
+    for _, r := range regions.Regions {
+        if r.Slug == region {
+            return true
+        }
+    }
+
+    v.ctx.Log.Error(fmt.Sprintf("Region '%s' is not available", region), nil)
+    return false
+}
+
+// etc... (more field-level checks for node sizes, database node sizes, etc.)
+```
+
+This snippet demonstrates a **struct-level** validator (`DigitalOceanToken`) ensuring that a DigitalOcean API token is set, and **field-level** validators (`KubernetesVersion`, `Region`, etc.) that fetch data from the provider's API at deployment time.
+
+For instance, after defining these validators, you might integrate them like so:
+
+```go
+func main() error {
+    return pulumi.Run(func(ctx *pulumi.Context) error {
+        cfg := &Configuration{} // your own config struct
+        // Provide your custom validations along with the config.
+        if err := pulumiconfig.GetConfig(ctx, cfg, GetCustomValidations(ctx)...); err != nil {
+            return err
+        }
+
+        // Continue with your Pulumi logic.
+        // ...
+
+        return nil
+    })
 }
 ```
+
+By combining `StructValidation` and `FieldValidation`, you can enforce both global and per-field checks for your Pulumi configurations. Adjust or extend as needed for your own providers or custom logic.
 
 ## License
 
