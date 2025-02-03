@@ -30,8 +30,11 @@ config:
 ```
 
 ```go
+package main
+
 import (
-    "github.com/exivity/EaaS-Pulumi-Deployment/pkg/providers/config"
+    "github.com/exivity/pulumiconfig/pkg/pulumiconfig"
+    "github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
 // Example of defining a PulumiConfig struct
@@ -39,21 +42,20 @@ type PulumiConfig struct {
     Name string `pulumi:"name" validate:"default=john-doe"`
 }
 
-// Example deployment function using PulumiConfig
-func main() error {
+func main() {
     pulumi.Run(func(ctx *pulumi.Context) error {
-    cfg := &PulumiConfig{}
-    err = pulumiconfig.GetConfig(ctx, cfg)
-    if err != nil {
-        return err
-    }
+        cfg := &PulumiConfig{}
+        err := pulumiconfig.GetConfig(ctx, cfg)
+        if err != nil {
+            return err
+        }
 
-    // Use cfg.Name, etc.
-    ctx.Export("name", cfg.Name)
+        ctx.Export("name", pulumi.String(cfg.Name))
 
-  return nil
- })
+        return nil
+    })
 }
+
 ```
 
 ### Using `pulumiConfigNamespace`
@@ -70,6 +72,13 @@ config:
 ```
 
 ```go
+package main
+
+import (
+    "github.com/exivity/pulumiconfig/pkg/pulumiconfig"
+    "github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+)
+
 type PulumiConfig struct {
     ProviderCredentials *ProviderCredentials `json:"provider_credentials" pulumiConfigNamespace:"provider" validate:"required"`
 }
@@ -78,19 +87,20 @@ type ProviderCredentials struct {
     Token string `json:"token"`
 }
 
-// Example deployment function using PulumiConfig with namespace
-func main() error {
+func main() {
     pulumi.Run(func(ctx *pulumi.Context) error {
-    cfg := &PulumiConfig{}
-    err = pulumiconfig.GetConfig(ctx, cfg)
-    if err != nil {
-        return err
-    }
+        cfg := &PulumiConfig{}
+        err := pulumiconfig.GetConfig(ctx, cfg)
+        if err != nil {
+            return err
+        }
 
-    ctx.Export("provider_token", cfg.Token)
+        ctx.Export("provider_token", pulumi.String(cfg.ProviderCredentials.Token))
 
-    return nil
+        return nil
+    })
 }
+
 ```
 
 ### Using `overrideConfigNamespace`
@@ -107,8 +117,15 @@ config:
 ```
 
 ```go
+package main
+
+import (
+    "github.com/exivity/pulumiconfig/pkg/pulumiconfig"
+    "github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+)
+
 type PulumiConfig struct {
-    ProdOverrides  DigitalOceanConfig `json:"digital_ocean" overrideConfigNamespace:"prod"`
+    ProdOverrides DigitalOceanConfig `json:"digital_ocean" overrideConfigNamespace:"prod"`
 }
 
 type DigitalOceanConfig struct {
@@ -116,20 +133,19 @@ type DigitalOceanConfig struct {
     Project string `json:"project"`
 }
 
-// The overrideConfigNamespace tag tells PulumiConfig to look in "do-prod" namespace
-// after reading "do". The override values, if found, will overwrite or merge on top.
-func main() error {
+func main() {
     pulumi.Run(func(ctx *pulumi.Context) error {
-    cfg := &PulumiConfig{}
-    err = pulumiconfig.GetConfig(ctx, cfg)
-    if err != nil {
-        return err
-    }
+        cfg := &PulumiConfig{}
+        err := pulumiconfig.GetConfig(ctx, cfg)
+        if err != nil {
+            return err
+        }
 
-    ctx.Export("region", cfg.ProdOverrides.Region)   // -> AMS3
-    ctx.Export("project", cfg.ProdOverrides.Project) // -> production-project
+        ctx.Export("region", pulumi.String(cfg.ProdOverrides.Region))   // -> AMS3
+        ctx.Export("project", pulumi.String(cfg.ProdOverrides.Project)) // -> production-project
 
-    return nil
+        return nil
+    })
 }
 ```
 
@@ -144,8 +160,6 @@ package main
 
 import (
     "fmt"
-    "reflect"
-    "slices"
 
     "github.com/exivity/pulumiconfig/pkg/pulumiconfig"
     "github.com/go-playground/validator/v10"
@@ -158,6 +172,12 @@ const (
     pulumiDigitalOceanNamespace = "digitalocean"
     pulumiDigitalOceanTokenKey  = "token"
 )
+
+type Configuration struct {
+    DigitalOceanToken string `json:"digitalOceanToken" validate:"required"`
+    KubernetesVersion string `json:"kubernetesVersion" validate:"required"`
+    Region            string `json:"region" validate:"required"`
+}
 
 // GetCustomValidations returns a slice of Validators that run on a Configuration struct.
 func GetCustomValidations(ctx *pulumi.Context) []pulumiconfig.Validator {
@@ -252,11 +272,11 @@ This snippet demonstrates a **struct-level** validator (`DigitalOceanToken`) ens
 For instance, after defining these validators, you might integrate them like so:
 
 ```go
-func main() error {
-    return pulumi.Run(func(ctx *pulumi.Context) error {
-        cfg := &Configuration{} // your own config struct
-        // Provide your custom validations along with the config.
-        if err := pulumiconfig.GetConfig(ctx, cfg, GetCustomValidations(ctx)...); err != nil {
+func main() {
+    pulumi.Run(func(ctx *pulumi.Context) error {
+        cfg := &PulumiConfig{}
+        err := pulumiconfig.GetConfig(ctx, cfg, GetCustomValidations(ctx)...)
+        if err != nil {
             return err
         }
 
