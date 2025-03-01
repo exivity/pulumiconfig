@@ -4,7 +4,7 @@ go 1.22.3
 
 require (
 	dario.cat/mergo v1.0.1
-	github.com/go-playground/validator/v10 v10.24.0
+	github.com/go-playground/validator/v10 v10.25.0
 	github.com/pulumi/pulumi/sdk/v3 v3.148.0
 	github.com/stretchr/testify v1.10.0
 )
