@@ -1,8 +1,35 @@
-# PulumiConfig
+### About the projects:
+<details>
+  <summary>Table of contents</summary>
+  <ol>
+    <li>
+      <a href="#pulumi-config">PulumiConfig Section</a>
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#installation">Installation</a></li>
+        <li><a href="#usage">Usage</a></li>
+        <li><a href="#examples">Examples</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#pulumi-test">PulumiTest Section</a>
+      <ul>
+        <li><a href="#features-1">Features</a></li>
+        <li><a href="#installation-1">Installation</a></li>
+        <li><a href="#usage-1">Usage</a></li>
+        <li><a href="#examples-1">Examples</a></li>
+      </ul>
+    </li>
+  </ol>
+</details>
+
+
+<!-- pulumi-config -->
+## PulumiConfig <a id="pulumi-config"></a>
 
 PulumiConfig is a Golang library designed to improve the way developers manage configuration in Pulumi. By leveraging Golang structs, it simplifies the process of tracking and validating configuration keys, ensuring a more efficient and error-free deployment process in cloud infrastructure projects.
 
-## Features
+### Features <a id="features"></a>
 
 - **Seamless Integration**: Effortlessly integrates with Pulumi and Golang projects.
 - **Automated Key Tracking**: Automatically tracks configuration keys using Golang structs.
@@ -10,7 +37,8 @@ PulumiConfig is a Golang library designed to improve the way developers manage c
 - **[go-playground/validator](https://github.com/go-playground/validator)**, letting you define both field- and struct-level validations., allowing required values and complex validations.
 - **Namespace Overrides**: Use `overrideConfigNamespace` to override specific fields with values from a different namespace.
 
-## Installation
+### Installation <a id="installation"></a>
+
 
 To integrate PulumiConfig into your Golang project, follow these steps:
 
@@ -151,7 +179,7 @@ func main() {
 
 You can use `overrideConfigNamespace` on any field-level struct tag. PulumiConfig will first load from the main namespace, and then—if `overrideConfigNamespace` is set—load the separate namespace and merge those values in.
 
-### Example: Custom Field and Struct Validators
+### Example: Custom Field and Struct Validators <a id="examples"></a>
 
 Below is a more in-depth example illustrating how you can combine PulumiConfig with the Pulumi DigitalOcean provider for domain-specific validation:
 
@@ -290,6 +318,118 @@ func main() {
 
 By combining `StructValidation` and `FieldValidation`, you can enforce both global and per-field checks for your Pulumi configurations. Adjust or extend as needed for your own providers or custom logic.
 
+
+
+
+
+<!-- pulumi-test -->
+## PulumiTest <a id="pulumi-test"></a>
+
+
+`pulumitest` is a Go package that provides helper functions to simplify testing Pulumi resources and outputs. It simplifies Pulumi testing by abstracting common patterns and offering intuitive assertions for resource validation.
+
+### Features <a id="features-1"></a>
+
+- **Simplifies Testing**: Provides utility functions to compare Pulumi outputs and resources without writing boilerplate code.
+- **Fast Test Workflow**: Enables quick and efficient testing of Pulumi programs in Go.
+
+
+### Installation <a id="installation-1"></a>
+
+To use `pulumitest`, import it into your test files:
+
+```go
+import ("github.com/exivity/pulumiconfig/pkg/pulumitest")
+```
+
+## Usage
+
+### Basic Usage
+Below are the public functions provided by `pulumitest` and how to use them:
+
+```bash
+pulumitest.AssertStringOutputEqual(t, expectedOutput, actualOutput)
+pulumitest.AssertMapEqual(t, expectedMap, actualMap)
+pulumitest.AssertStringMapEqual(t, expectedStringMap, actualStringMap)
+```
+
+Sets the Pulumi configuration for a test.
+```bash
+pulumitest.SetPulumiConfig(t, map[string]string{
+    "key1": "value1",
+    "key2": "value2",
+})
+```
+
+### Example: Testing Map Outputs <a id="examples-1"></a>
+Compares two pulumi.MapOutput values and reports if they are not equal.
+
+```go
+package test
+
+import (
+    "testing"
+
+    "github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+    "github.com/exivity/pulumiconfig/pkg/pulumitest"
+)
+
+func TestAssertMapEqual(t *testing.T) {
+	type args struct {
+		expected   pulumi.MapOutput
+		actual     pulumi.MapOutput
+		msgAndArgs []interface{}
+	}
+	tests := []struct {
+		name       string
+		args       args
+		wantFailed bool
+	}{
+		{
+			name: "nil outputs", // Both maps are empty.
+			args: args{
+				expected: pulumi.Map{}.ToMapOutput(),
+				actual:   pulumi.Map{}.ToMapOutput(),
+			},
+			wantFailed: false,
+		},
+		{
+			name: "expect and actual are equal", // Both maps have the same key-value pairs.
+			args: args{
+				expected: pulumi.Map{
+					"key": pulumi.String("value"),
+				}.ToMapOutput(),
+				actual: pulumi.Map{
+					"key": pulumi.String("value"),
+				}.ToMapOutput(),
+			},
+			wantFailed: false,
+		},
+		{
+			name: "expect and actual are not equal", // Maps have different values for the same key.
+			args: args{
+				expected: pulumi.Map{
+					"key": pulumi.String("value"),
+				}.ToMapOutput(),
+				actual: pulumi.Map{
+					"key": pulumi.String(""),
+				}.ToMapOutput(),
+			},
+			wantFailed: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testT := &testing.T{}
+			AssertMapEqual(testT, tt.args.expected, tt.args.actual, tt.args.msgAndArgs...)
+			assert.Equal(t, tt.wantFailed, testT.Failed())
+		})
+	}
+}
+
+```
+
 ## License
 
 PulumiConfig is released under MIT. See the [LICENSE](./LICENSE) file for more details.
+

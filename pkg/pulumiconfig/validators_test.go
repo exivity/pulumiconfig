@@ -1,3 +1,6 @@
+// Package pulumiconfig contains tests for validating the behavior of utility functions.
+// This file specifically tests the `string2Number` function, which converts strings to numbers.
+
 package pulumiconfig
 
 import (
@@ -5,6 +8,8 @@ import (
 	"testing"
 )
 
+// It ensures that the function correctly converts strings to numeric types (e.g., int64, uint64, float64)
+// and handles invalid inputs or unsupported conversion types.
 func Test_string2Number(t *testing.T) {
 	type args struct {
 		s string
