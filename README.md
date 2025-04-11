@@ -332,7 +332,6 @@ By combining `StructValidation` and `FieldValidation`, you can enforce both glob
 
 - **Simplifies Testing**: Provides utility functions to compare Pulumi outputs and resources without writing boilerplate code.
 - **Fast Test Workflow**: Enables quick and efficient testing of Pulumi programs in Go.
-- **Integration with Testify**: Leverages the `testify` library for assertions, making it easy to integrate into existing test suites.
 
 
 ### Installation <a id="installation-1"></a>

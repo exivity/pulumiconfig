@@ -26,10 +26,7 @@ import (
 
 // AssertStringOutputEqual compares two pulumi.StringOutput values
 // and uses testify to report if they are not equal.
-//
-// Usage:
-//
-//	pulumitest.AssertStringOutputEqual(t, expectedOutput, actualOutput)
+
 func AssertStringOutputEqual(t *testing.T, expected, actual pulumi.Output, msgAndArgs ...interface{}) {
 	wg := &sync.WaitGroup{}
 	var expectedValue, actualValue interface{}
@@ -58,10 +55,7 @@ func AssertStringOutputEqual(t *testing.T, expected, actual pulumi.Output, msgAn
 }
 
 // AssertMapEqual compares two pulumi.Map values and uses testify to report if they are not equal.
-//
-// Usage:
-//
-//	pulumitest.AssertMapEqual(t, expectedMap, actualMap)
+
 func AssertMapEqual(t *testing.T, expected, actual pulumi.MapOutput, msgAndArgs ...interface{}) {
 	wg := &sync.WaitGroup{}
 	var expectedValue, actualValue map[string]interface{}
@@ -90,10 +84,7 @@ func AssertMapEqual(t *testing.T, expected, actual pulumi.MapOutput, msgAndArgs 
 }
 
 // AssertStringMapEqual compares two pulumi.StringMap values and uses testify to report if they are not equal.
-//
-// Usage:
-//
-//	pulumitest.AssertStringMapEqual(t, expectedStringMap, actualStringMap)
+
 func AssertStringMapEqual(t *testing.T, expected, actual pulumi.StringMapOutput, msgAndArgs ...interface{}) {
 	wg := &sync.WaitGroup{}
 	var expectedValue, actualValue map[string]string
@@ -122,10 +113,7 @@ func AssertStringMapEqual(t *testing.T, expected, actual pulumi.StringMapOutput,
 }
 
 // AssertArrayEqual compares two pulumi.Array values and uses testify to report if they are not equal.
-//
-// Usage:
-//
-//	pulumitest.AssertArrayEqual(t, expectedArray, actualArray)
+
 func AssertArrayEqual(t *testing.T, expected, actual pulumi.ArrayOutput, msgAndArgs ...interface{}) {
 	wg := &sync.WaitGroup{}
 	var expectedValue, actualValue []interface{}
