@@ -1,16 +1,22 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
+    commit-message:
+      prefix: "deps(actions)"
     directory: "/"
     schedule:
       interval: "monthly"
 
   - package-ecosystem: "gomod"
+    commit-message:
+      prefix: "deps(go)"
     directory: "/"
     schedule:
       interval: "monthly"
 
   - package-ecosystem: "docker"
+    commit-message:
+      prefix: "deps(container)"
     directory: "/"
     schedule:
       interval: "monthly"
