@@ -1,3 +1,6 @@
+// Package pulumitest provides helper functions to test Pulumi outputs.
+// These helpers make it easier to compare Pulumi outputs in unit tests.
+
 package pulumitest
 
 import (
@@ -7,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestAssertStringOutputEqual checks if two Pulumi string outputs are the same.
+// It ensures that the AssertStringOutputEqual function works as expected.
 func TestAssertStringOutputEqual(t *testing.T) {
 	type args struct {
 		expected   pulumi.Output
@@ -19,7 +24,7 @@ func TestAssertStringOutputEqual(t *testing.T) {
 		wantFailed bool
 	}{
 		{
-			name: "nil outputs",
+			name: "nil outputs", // Both outputs are empty strings.
 			args: args{
 				expected: pulumi.String("").ToStringOutput(),
 				actual:   pulumi.String("").ToStringOutput(),
@@ -27,7 +32,7 @@ func TestAssertStringOutputEqual(t *testing.T) {
 			wantFailed: false,
 		},
 		{
-			name: "expect and actual are equal",
+			name: "expect and actual are equal", // Both outputs have the same value.
 			args: args{
 				expected: pulumi.String("123").ToStringOutput(),
 				actual:   pulumi.String("123").ToStringOutput(),
@@ -35,7 +40,7 @@ func TestAssertStringOutputEqual(t *testing.T) {
 			wantFailed: false,
 		},
 		{
-			name: "expect and actual are not equal",
+			name: "expect and actual are not equal", // Outputs have different values.
 			args: args{
 				expected: pulumi.String("123").ToStringOutput(),
 				actual:   pulumi.String("").ToStringOutput(),
@@ -52,6 +57,8 @@ func TestAssertStringOutputEqual(t *testing.T) {
 	}
 }
 
+// TestAssertMapEqual checks if two Pulumi map outputs are the same.
+// It ensures that the AssertMapEqual function works expected.
 func TestAssertMapEqual(t *testing.T) { //nolint:dupl // test cases are similar
 	type args struct {
 		expected   pulumi.MapOutput
@@ -64,7 +71,7 @@ func TestAssertMapEqual(t *testing.T) { //nolint:dupl // test cases are similar
 		wantFailed bool
 	}{
 		{
-			name: "nil outputs",
+			name: "nil outputs", // Both maps are empty.
 			args: args{
 				expected: pulumi.Map{}.ToMapOutput(),
 				actual:   pulumi.Map{}.ToMapOutput(),
@@ -72,7 +79,7 @@ func TestAssertMapEqual(t *testing.T) { //nolint:dupl // test cases are similar
 			wantFailed: false,
 		},
 		{
-			name: "expect and actual are equal",
+			name: "expect and actual are equal", // Both maps have the same key-value pairs.
 			args: args{
 				expected: pulumi.Map{
 					"key": pulumi.String("value"),
@@ -84,7 +91,7 @@ func TestAssertMapEqual(t *testing.T) { //nolint:dupl // test cases are similar
 			wantFailed: false,
 		},
 		{
-			name: "expect and actual are not equal",
+			name: "expect and actual are not equal", // Maps have different values for the same key.
 			args: args{
 				expected: pulumi.Map{
 					"key": pulumi.String("value"),
@@ -105,6 +112,8 @@ func TestAssertMapEqual(t *testing.T) { //nolint:dupl // test cases are similar
 	}
 }
 
+// TestAssertStringMapEqual checks if two Pulumi string map outputs are the same.
+// It ensures that the AssertStringMapEqual function works correctly.
 func TestAssertStringMapEqual(t *testing.T) { //nolint:dupl // test cases are similar
 	type args struct {
 		expected   pulumi.StringMapOutput
@@ -117,7 +126,7 @@ func TestAssertStringMapEqual(t *testing.T) { //nolint:dupl // test cases are si
 		wantFailed bool
 	}{
 		{
-			name: "nil outputs",
+			name: "nil outputs", // Both string maps are empty.
 			args: args{
 				expected: pulumi.StringMap{}.ToStringMapOutput(),
 				actual:   pulumi.StringMap{}.ToStringMapOutput(),
@@ -125,7 +134,7 @@ func TestAssertStringMapEqual(t *testing.T) { //nolint:dupl // test cases are si
 			wantFailed: false,
 		},
 		{
-			name: "expect and actual are equal",
+			name: "expect and actual are equal", // Both string maps have the same key-value pairs.
 			args: args{
 				expected: pulumi.StringMap{
 					"key": pulumi.String("value"),
@@ -137,7 +146,7 @@ func TestAssertStringMapEqual(t *testing.T) { //nolint:dupl // test cases are si
 			wantFailed: false,
 		},
 		{
-			name: "expect and actual are not equal",
+			name: "expect and actual are not equal", // String maps have different values for the same key.
 			args: args{
 				expected: pulumi.StringMap{
 					"key": pulumi.String("value"),
@@ -158,6 +167,8 @@ func TestAssertStringMapEqual(t *testing.T) { //nolint:dupl // test cases are si
 	}
 }
 
+// TestAssertArrayEqual checks if two Pulumi array outputs are the same.
+// It ensures that the AssertArrayEqual function works correctly.
 func TestAssertArrayEqual(t *testing.T) {
 	type args struct {
 		expected   pulumi.ArrayOutput
@@ -170,7 +181,7 @@ func TestAssertArrayEqual(t *testing.T) {
 		wantFailed bool
 	}{
 		{
-			name: "nil outputs",
+			name: "nil outputs", // Both arrays are empty.
 			args: args{
 				expected: pulumi.Array{}.ToArrayOutput(),
 				actual:   pulumi.Array{}.ToArrayOutput(),
@@ -178,7 +189,7 @@ func TestAssertArrayEqual(t *testing.T) {
 			wantFailed: false,
 		},
 		{
-			name: "expect and actual are equal",
+			name: "expect and actual are equal", // Both arrays have the same values.
 			args: args{
 				expected: pulumi.Array{
 					pulumi.String("value"),
@@ -190,7 +201,7 @@ func TestAssertArrayEqual(t *testing.T) {
 			wantFailed: false,
 		},
 		{
-			name: "expect and actual are not equal",
+			name: "expect and actual are not equal", // Arrays have different values.
 			args: args{
 				expected: pulumi.Array{
 					pulumi.String("value"),
