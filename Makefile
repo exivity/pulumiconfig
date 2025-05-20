@@ -2,7 +2,7 @@ SHELL=/bin/bash -e -o pipefail
 PWD = $(shell pwd)
 
 # constants
-GOLANGCI_VERSION = 1.61.0
+GOLANGCI_VERSION = 2.1.6
 
 out:
 	@mkdir -p out
