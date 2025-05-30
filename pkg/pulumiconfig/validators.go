@@ -152,7 +152,7 @@ func (v *Validation) envLoader(fl validator.FieldLevel) bool { //nolint:cyclop /
 	if !ok || val == "" {
 		return true
 	}
-	switch field.Kind() {
+	switch field.Kind() { //nolint:exhaustive // not all cases are needed
 	case reflect.String:
 		field.SetString(val)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
