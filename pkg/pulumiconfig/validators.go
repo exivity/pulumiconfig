@@ -157,24 +157,32 @@ func (v *Validation) envLoader(fl validator.FieldLevel) bool { //nolint:cyclop /
 		field.SetString(val)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		d, err := string2Number(val, Int64)
-		if err == nil {
-			field.SetInt(d.(int64))
+		if err != nil {
+			fmt.Printf("Error parsing environment variable %s as int64: %v\n", envVar, err)
+			return false
 		}
+		field.SetInt(d.(int64))
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		d, err := string2Number(val, Uint64)
-		if err == nil {
-			field.SetUint(d.(uint64))
+		if err != nil {
+			fmt.Printf("Error parsing environment variable %s as uint64: %v\n", envVar, err)
+			return false
 		}
+		field.SetUint(d.(uint64))
 	case reflect.Float32, reflect.Float64:
 		d, err := string2Number(val, Float64)
-		if err == nil {
-			field.SetFloat(d.(float64))
+		if err != nil {
+			fmt.Printf("Error parsing environment variable %s as float64: %v\n", envVar, err)
+			return false
 		}
+		field.SetFloat(d.(float64))
 	case reflect.Bool:
 		b, err := strconv.ParseBool(val)
-		if err == nil {
-			field.SetBool(b)
+		if err != nil {
+			fmt.Printf("Error parsing environment variable %s as bool: %v\n", envVar, err)
+			return false
 		}
+		field.SetBool(b)
 	}
 	return true
 }
