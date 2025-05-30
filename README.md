@@ -36,6 +36,7 @@ PulumiConfig is a Golang library designed to improve the way developers manage c
 - **JSON Tagging**: Supports JSON tagging for Pulumi configuration keys, including nested structs.
 - **[go-playground/validator](https://github.com/go-playground/validator)**, letting you define both field- and struct-level validations., allowing required values and complex validations.
 - **Namespace Overrides**: Use `overrideConfigNamespace` to override specific fields with values from a different namespace.
+- **Environment Variable Fallback**: Use the `env` validator tag to load a value from an environment variable if it is not set in Pulumi config.
 
 ### Installation <a id="installation"></a>
 
@@ -178,6 +179,35 @@ func main() {
 ```
 
 You can use `overrideConfigNamespace` on any field-level struct tag. PulumiConfig will first load from the main namespace, and then—if `overrideConfigNamespace` is set—load the separate namespace and merge those values in.
+
+### Using Environment Variables as Fallback
+
+You can use the `env` validator tag to load a value from an environment variable if it is not set in Pulumi config. This is useful for secrets or values that should not be committed to version control.
+
+```go
+import (
+    "github.com/exivity/pulumiconfig/pkg/pulumiconfig"
+    "github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+)
+
+type PulumiConfig struct {
+    Name string `pulumi:"name" validate:"env=MY_NAME_ENV_VAR"`
+}
+
+func main() {
+    pulumi.Run(func(ctx *pulumi.Context) error {
+        cfg := &PulumiConfig{}
+        err := pulumiconfig.GetConfig(ctx, cfg)
+        if err != nil {
+            return err
+        }
+        ctx.Export("name", pulumi.String(cfg.Name))
+        return nil
+    })
+}
+```
+
+If the `name` value is not set in Pulumi config, it will be loaded from the `MY_NAME_ENV_VAR` environment variable if present.
 
 ### Example: Custom Field and Struct Validators <a id="examples"></a>
 
