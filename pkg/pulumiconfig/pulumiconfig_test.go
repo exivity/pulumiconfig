@@ -410,6 +410,11 @@ func TestGetConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Clear environment variables before setting new values
+			for key := range tt.envVars {
+				err := os.Unsetenv(key)
+				assert.NoError(t, err, "Error clearing environment variable %s", key)
+			}
 			for key, value := range tt.envVars {
 				err := os.Setenv(key, value)
 				assert.NoError(t, err, "Error setting environment variable %s", key)
