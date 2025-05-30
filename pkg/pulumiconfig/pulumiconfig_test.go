@@ -383,7 +383,28 @@ func TestGetConfig(t *testing.T) {
 			args: args{
 				obj: &TestEnvValue{},
 			},
-			want: &TestEnvValue{},
+			want:    &TestEnvValue{},
+			wantErr: false,
+		},
+		{
+			name: "config value takes precedence over env var",
+			config: map[string]string{
+				"project:env_string": `"config_value"`,
+				"project:env_int":    `100`,
+				"project:env_uint":   `123`,
+				"project:env_float":  `2.71`,
+				"project:env_bool":   `false`,
+			},
+			args: args{
+				obj: &TestEnvValue{},
+			},
+			want: &TestEnvValue{
+				EnvString: "config_value",
+				EnvInt:    100,
+				EnvUInt:   123,
+				EnvFloat:  2.71,
+				EnvBool:   false,
+			},
 			wantErr: false,
 		},
 	}
