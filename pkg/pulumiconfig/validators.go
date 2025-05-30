@@ -135,7 +135,7 @@ func (v *Validation) defaultSetter(fl validator.FieldLevel) bool { //nolint:funl
 }
 
 // envLoader is a validator function that sets the field from an environment variable only if it's zero-valued (not set by Pulumi config).
-func (v *Validation) envLoader(fl validator.FieldLevel) bool {
+func (v *Validation) envLoader(fl validator.FieldLevel) bool { //nolint:cyclop // many switch cases
 	envVar := fl.Param()
 	if envVar == "" {
 		return true
