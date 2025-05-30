@@ -88,6 +88,15 @@ func setPulumiConfig(t *testing.T, config map[string]string) {
 	assert.NoError(t, err)
 }
 
+// TestEnvValue is used to test the env validator.
+type TestEnvValue struct {
+	EnvString string  `json:"env_string" validate:"env=TEST_ENV_STRING"`
+	EnvInt    int     `json:"env_int" validate:"env=TEST_ENV_INT"`
+	EnvUInt   uint    `json:"env_uint" validate:"env=TEST_ENV_UINT"`
+	EnvFloat  float32 `json:"env_float" validate:"env=TEST_ENV_FLOAT"`
+	EnvBool   bool    `json:"env_bool" validate:"env=TEST_ENV_BOOL"`
+}
+
 func TestGetConfig(t *testing.T) {
 	type args struct {
 		obj         interface{}
@@ -98,6 +107,7 @@ func TestGetConfig(t *testing.T) {
 		name    string
 		config  map[string]string
 		args    args
+		envVars map[string]string
 		want    interface{}
 		wantErr bool
 	}{
@@ -345,9 +355,51 @@ func TestGetConfig(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name:   "env values are set from environment variables",
+			config: map[string]string{},
+			args: args{
+				obj: &TestEnvValue{},
+			},
+			envVars: map[string]string{
+				"TEST_ENV_STRING": "env_value",
+				"TEST_ENV_INT":    "42",
+				"TEST_ENV_UINT":   "99",
+				"TEST_ENV_FLOAT":  "3.14",
+				"TEST_ENV_BOOL":   "true",
+			},
+			want: &TestEnvValue{
+				EnvString: "env_value",
+				EnvInt:    42,
+				EnvUInt:   99,
+				EnvFloat:  3.14,
+				EnvBool:   true,
+			},
+			wantErr: false,
+		},
+		{
+			name:   "env values are not set if env vars are missing",
+			config: map[string]string{},
+			args: args{
+				obj: &TestEnvValue{},
+			},
+			want: &TestEnvValue{},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			for key, value := range tt.envVars {
+				err := os.Setenv(key, value)
+				assert.NoError(t, err, "Error setting environment variable %s", key)
+			}
+			t.Cleanup(func() {
+				for key := range tt.envVars {
+					err := os.Unsetenv(key)
+					assert.NoError(t, err, "Error unsetting environment variable %s", key)
+				}
+			})
+
 			setPulumiConfig(t, tt.config)
 
 			err := pulumi.RunErr(func(ctx *pulumi.Context) error {
