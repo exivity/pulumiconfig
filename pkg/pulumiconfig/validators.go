@@ -3,6 +3,7 @@ package pulumiconfig
 import (
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 
@@ -48,6 +49,10 @@ func GetValidations(ctx *pulumi.Context) []Validator {
 		FieldValidation{
 			Tag:      "default",
 			Validate: v.defaultSetter,
+		},
+		FieldValidation{
+			Tag:      "env",
+			Validate: v.envLoader,
 		},
 	}
 }
@@ -127,4 +132,63 @@ func (v *Validation) defaultSetter(fl validator.FieldLevel) bool { //nolint:funl
 	}
 
 	return true
+}
+
+// envLoader is a validator function that sets the field from an environment variable only if it's zero-valued (not set by Pulumi config).
+func (v *Validation) envLoader(fl validator.FieldLevel) bool { //nolint:cyclop // many switch cases
+	envVar := fl.Param()
+	if envVar == "" {
+		return true
+	}
+	field := fl.Field()
+	if !field.CanSet() {
+		return true
+	}
+	// Only set from env if the field is still zero-valued (not set by config)
+	if !isZeroValue(field) {
+		return true
+	}
+	val, ok := os.LookupEnv(envVar)
+	if !ok || val == "" {
+		return true
+	}
+	switch field.Kind() { //nolint:exhaustive // not all cases are needed
+	case reflect.String:
+		field.SetString(val)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		d, err := string2Number(val, Int64)
+		if err != nil {
+			fmt.Printf("Error parsing environment variable %s as int64: %v\n", envVar, err)
+			return false
+		}
+		field.SetInt(d.(int64))
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		d, err := string2Number(val, Uint64)
+		if err != nil {
+			fmt.Printf("Error parsing environment variable %s as uint64: %v\n", envVar, err)
+			return false
+		}
+		field.SetUint(d.(uint64))
+	case reflect.Float32, reflect.Float64:
+		d, err := string2Number(val, Float64)
+		if err != nil {
+			fmt.Printf("Error parsing environment variable %s as float64: %v\n", envVar, err)
+			return false
+		}
+		field.SetFloat(d.(float64))
+	case reflect.Bool:
+		b, err := strconv.ParseBool(val)
+		if err != nil {
+			fmt.Printf("Error parsing environment variable %s as bool: %v\n", envVar, err)
+			return false
+		}
+		field.SetBool(b)
+	}
+	return true
+}
+
+// isZeroValue checks if a reflect.Value is zero for its type.
+func isZeroValue(v reflect.Value) bool {
+	zero := reflect.Zero(v.Type())
+	return reflect.DeepEqual(v.Interface(), zero.Interface())
 }
