@@ -3,7 +3,7 @@ module github.com/exivity/pulumiconfig
 go 1.23.0
 
 require (
-	dario.cat/mergo v1.0.1
+	dario.cat/mergo v1.0.2
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/pulumi/pulumi/sdk/v3 v3.173.0
 	github.com/stretchr/testify v1.10.0
